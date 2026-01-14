@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+from sklearn.model_selection import learning_curve
 from sklearn.metrics import (
     confusion_matrix,
     classification_report,
@@ -11,6 +12,7 @@ from sklearn.metrics import (
     precision_score,
     recall_score
 )
+
 
 def analyze_feature_importance(model):
     """
@@ -159,3 +161,53 @@ def full_classification_report_from_scores(model, X_test, y_test, threshold, mod
     plt.show()
 
     return metrics
+
+
+def plot_learning_curve(estimator, X, y, title="Learning Curve", cv=5, scoring='f1'):
+    """
+    Generates and plots the learning curve to diagnose bias and variance.
+
+    Args:
+        estimator: The model or pipeline to be evaluated.
+        X: Training features.
+        y: Training target.
+        title: Graph title.
+        cv: Number of folds for cross-validation.
+        scoring: Metric to be evaluated (default 'f1').
+    """
+
+    # Sample sizes for training: 10%, 32%, 55%, 78%, 100% of the dataset
+    train_sizes = np.linspace(0.1, 1.0, 5)
+
+    # Calculate learning curves using cross-validation
+    train_sizes_abs, train_scores, validation_scores = learning_curve(
+        estimator,
+        X,
+        y,
+        train_sizes=train_sizes,
+        cv=cv,
+        scoring=scoring,
+        n_jobs=-1
+    )
+
+    # Calculate means and standard deviations
+    train_mean = np.mean(train_scores, axis=1)
+    train_std = np.std(train_scores, axis=1)
+    val_mean = np.mean(validation_scores, axis=1)
+    val_std = np.std(validation_scores, axis=1)
+
+    # Plot
+    plt.figure(figsize=(10, 6))
+    plt.plot(train_sizes_abs, train_mean, 'o-', color="r", label="Training Score")
+    plt.plot(train_sizes_abs, val_mean, 'o-', color="g", label="Cross-Validation Score")
+
+    # Draw error bands
+    plt.fill_between(train_sizes_abs, train_mean - train_std, train_mean + train_std, alpha=0.1, color="r")
+    plt.fill_between(train_sizes_abs, val_mean - val_std, val_mean + val_std, alpha=0.1, color="g")
+
+    plt.title(f"{title} - Metric: {scoring}")
+    plt.xlabel("Training Set Size")
+    plt.ylabel(f"{scoring} Score")
+    plt.legend(loc="best")
+    plt.grid(True)
+    plt.show()

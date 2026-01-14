@@ -4,6 +4,7 @@ import os
 from datetime import datetime
 from sklearn.model_selection import GridSearchCV
 from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import PolynomialFeatures
 from sklearn.linear_model import (
     LogisticRegression,
     SGDClassifier
@@ -50,6 +51,51 @@ def train_logistic_regression(X_train, y_train, preprocessor_pipeline):
     # 5. Model fitting
     grid_search.fit(X_train, y_train)
 
+    return grid_search.best_estimator_, grid_search.best_params_
+
+
+def train_logistic_regression_poly(X_train, y_train, preprocessor_pipeline):
+    """
+    Train a Logistic Regression with Polynomial Features.
+    """
+    # 1. Define the base Logistic Regression model
+    logit_base = LogisticRegression(
+        solver='saga',
+        l1_ratio=1.0,
+        max_iter=15000,
+        random_state=9999
+    )
+
+    # 2. Create the final Pipeline: Preprocessing + Model
+    full_pipeline = Pipeline([
+        ("preprocessor", preprocessor_pipeline),
+        ("poly", PolynomialFeatures(include_bias=False)),
+        ("classifier", logit_base)
+    ])
+
+    # 3. Define Hyperparameters
+    param_grid = {
+        # Polynomial feature degrees
+        'poly__degree': [1, 2],
+
+        # Lasso regularization strength
+        'classifier__C': [0.001, 0.1, 1, 10, 100],
+
+        # Feature creation options
+        'preprocessor__feature_creator__Total_Income': [True, False],
+        'preprocessor__feature_creator__Income_Loan_Ratio': [True, False],
+        'preprocessor__feature_creator__High_Income_Flag': [True, False]
+    }
+
+    grid_search = GridSearchCV(
+        full_pipeline,
+        param_grid,
+        cv=5,
+        scoring='f1',
+        n_jobs=-1
+    )
+
+    grid_search.fit(X_train, y_train)
     return grid_search.best_estimator_, grid_search.best_params_
 
 
