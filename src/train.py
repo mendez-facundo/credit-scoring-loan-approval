@@ -5,6 +5,7 @@ from datetime import datetime
 from sklearn.model_selection import GridSearchCV
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import PolynomialFeatures
+from sklearn.svm import SVC
 from sklearn.linear_model import (
     LogisticRegression,
     SGDClassifier
@@ -226,4 +227,78 @@ def train_sgd_svm(X_train, y_train, preprocessor_pipeline):
     # 5. Model fitting
     grid_search.fit(X_train, y_train)
 
+    return grid_search.best_estimator_, grid_search.best_params_
+
+
+def train_svm_kernel(X_train, y_train, preprocessor_pipeline):
+    """
+    Train a nonlinear SVM (RBF Kernel) by optimizing C and gamma.
+    """
+    # 1. Define the base SVM model with RBF Kernel
+    svc_base = SVC(kernel='rbf', random_state=9999)
+
+    # 2. Pipeline
+    full_pipeline = Pipeline([
+        ("preprocessor", preprocessor_pipeline),
+        ("classifier", svc_base)
+    ])
+
+    # 3. Define hyperparameters
+    param_grid = {
+        'classifier__C': [0.1, 1, 10, 100],
+        'classifier__gamma': ['scale', 0.1, 0.01, 0.001],
+        'preprocessor__feature_creator__Total_Income': [True, False],
+        'preprocessor__feature_creator__Income_Loan_Ratio': [True, False],
+        'preprocessor__feature_creator__High_Income_Flag': [True, False]
+    }
+
+    # 4. GridSeachCV Optimization
+    print("Optimizing SVM model with RBF Kernel...")
+    grid_search = GridSearchCV(
+        full_pipeline,
+        param_grid,
+        cv=5,
+        scoring='f1',
+        n_jobs=-1
+    )
+
+    grid_search.fit(X_train, y_train)
+    return grid_search.best_estimator_, grid_search.best_params_
+
+
+def train_svm_poly(X_train, y_train, preprocessor_pipeline):
+    """
+    Train a polynomial kernel SVM using the 'Kernel Trick'.
+    Optimize degree, coef0, and C.
+    """
+    # 1. Define the base SVM model with Polynomial Kernel
+    svc_poly = SVC(kernel='poly', random_state=9999, max_iter=150000, tol=1e-3)
+
+    # 2. Pipeline
+    full_pipeline = Pipeline([
+        ("preprocessor", preprocessor_pipeline),
+        ("classifier", svc_poly)
+    ])
+
+    # 3. Define hyperparameters
+    param_grid = {
+        'classifier__degree': [1, 2, 3, 4],
+        'classifier__coef0': [0, 1, 5],
+        'classifier__C': [0.1, 1, 10, 100],
+        'preprocessor__feature_creator__Total_Income': [True, False],
+        'preprocessor__feature_creator__Income_Loan_Ratio': [True, False],
+        'preprocessor__feature_creator__High_Income_Flag': [True, False]
+    }
+
+    # 4. GridSeachCV Optimization
+    print("Optimizing SVM model with Polynomial Kernel...")
+    grid_search = GridSearchCV(
+        full_pipeline,
+        param_grid,
+        cv=5,
+        scoring='f1',
+        n_jobs=-1
+    )
+
+    grid_search.fit(X_train, y_train)
     return grid_search.best_estimator_, grid_search.best_params_

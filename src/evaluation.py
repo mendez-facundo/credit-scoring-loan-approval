@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.model_selection import learning_curve
+from sklearn.decomposition import PCA
 from sklearn.metrics import (
     confusion_matrix,
     classification_report,
@@ -211,3 +212,89 @@ def plot_learning_curve(estimator, X, y, title="Learning Curve", cv=5, scoring='
     plt.legend(loc="best")
     plt.grid(True)
     plt.show()
+
+
+def analyze_support_vectors(model, X_train, y_train, model_name="svm_model"):
+    """
+    Analyze and visualize the support vectors of an SVM (SVC) model.
+    Requires the model to be a pipeline with 'preprocessor' and 'classifier' steps.
+    """
+
+    # 1. Get classifier and preprocessor from the pipeline
+    try:
+        clf = model.named_steps['classifier']
+        preprocessor = model.named_steps['preprocessor']
+    except:
+        print("Error: The model should be a pipeline with 'preprocessor' and 'classifier' steps.")
+        return
+
+    # Check if the classifier is an SVM with support vectors
+    if not hasattr(clf, "support_vectors_"):
+        print(f"The classifier {type(clf).__name__} doesn't have support vectors.")
+        return
+
+    # 2. Support Vectors Analysis
+    n_total = X_train.shape[0]
+    n_sv = clf.support_vectors_.shape[0]
+    ratio = n_sv / n_total
+
+    print(f"\n--- Support Vector Analysis for {model_name} ---")
+    print(f"Total number of training instances: {n_total}")
+    print(f"Total Support Vectors: {n_sv}")
+    print(f"Ratio (SVs / Total): {ratio:.2%}")
+
+    # Get indexes of support vectors
+    sv_indices = clf.support_
+
+    # Check distribution of classes in support vectors
+    if hasattr(y_train, "iloc"):
+        sv_labels = y_train.iloc[sv_indices]
+    else:
+        sv_labels = y_train[sv_indices]
+
+    print("\nClass distribution in the Support Vectors:")
+    print(sv_labels.value_counts())
+
+    # 3. Visualization of Support Vectors using PCA
+    print("\nGenerating PCA visualization...")
+
+    # a) Transform training data (scaling/encoding)
+    X_processed = preprocessor.transform(X_train)
+
+    # b) Reduce to 2 dimensions to plot using PCA
+    pca = PCA(n_components=2, random_state=9999)
+    X_pca = pca.fit_transform(X_processed)
+
+    # c) Transform to numpy array if necessary
+    if hasattr(X_pca, "values"):
+        X_pca = X_pca.values
+    elif not isinstance(X_pca, np.ndarray):
+        X_pca = np.array(X_pca)
+
+    # d) Indentify support vectors in the PCA space
+    sv_pca = X_pca[sv_indices]
+
+    # e) Plot
+    plt.figure(figsize=(10, 6))
+
+    # Regular data points in light gray
+    # Transform y_train to array if it's a Series or DataFrame
+    y_arr = y_train.to_numpy() if hasattr(y_train, "to_numpy") else y_train
+
+    scatter = plt.scatter(X_pca[:, 0], X_pca[:, 1], c=y_arr,
+                          cmap='coolwarm', alpha=0.3, label='Data Points')
+
+    # Support Vectors as black empty circles
+    plt.scatter(sv_pca[:, 0], sv_pca[:, 1], s=100,
+                facecolors='none', edgecolors='k', linewidths=1.5, label='Support Vectors')
+
+    plt.title(f"SVM Support Vectors (PCA Projection) - {model_name}")
+    plt.xlabel("Principal Component 1")
+    plt.ylabel("Principal Component 2")
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+
+    plt.savefig(f'outputs/{model_name}_support_vectors.png')
+    plt.show()
+
+    return ratio
