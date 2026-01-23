@@ -6,6 +6,7 @@ from sklearn.model_selection import GridSearchCV
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.svm import SVC
+from sklearn.tree import DecisionTreeClassifier
 from sklearn.linear_model import (
     LogisticRegression,
     SGDClassifier
@@ -170,7 +171,7 @@ def train_sgd_logit(X_train, y_train, preprocessor_pipeline):
         'preprocessor__feature_creator__High_Income_Flag': [True, False]
     }
 
-    # 4. GridSeachCV Optimization
+    # 4. GridSearchCV Optimization
     grid_search = GridSearchCV(
         full_pipeline,
         param_grid,
@@ -215,7 +216,7 @@ def train_sgd_svm(X_train, y_train, preprocessor_pipeline):
         'preprocessor__feature_creator__High_Income_Flag': [True, False]
     }
 
-    # 4. GridSeachCV Optimization
+    # 4. GridSearchCV Optimization
     grid_search = GridSearchCV(
         full_pipeline,
         param_grid,
@@ -252,7 +253,7 @@ def train_svm_kernel(X_train, y_train, preprocessor_pipeline):
         'preprocessor__feature_creator__High_Income_Flag': [True, False]
     }
 
-    # 4. GridSeachCV Optimization
+    # 4. GridSearchCV Optimization
     print("Optimizing SVM model with RBF Kernel...")
     grid_search = GridSearchCV(
         full_pipeline,
@@ -290,7 +291,7 @@ def train_svm_poly(X_train, y_train, preprocessor_pipeline):
         'preprocessor__feature_creator__High_Income_Flag': [True, False]
     }
 
-    # 4. GridSeachCV Optimization
+    # 4. GridSearchCV Optimization
     print("Optimizing SVM model with Polynomial Kernel...")
     grid_search = GridSearchCV(
         full_pipeline,
@@ -300,5 +301,54 @@ def train_svm_poly(X_train, y_train, preprocessor_pipeline):
         n_jobs=-1
     )
 
+    # 5. Training
     grid_search.fit(X_train, y_train)
+    return grid_search.best_estimator_, grid_search.best_params_
+
+
+def train_decision_tree(X_train, y_train, preprocessor_pipeline):
+    """
+    Train an optimized DecisionTreeClassifier using GridSearchCV.
+    Regularization hyperparameters are applied to prevent overfitting.
+    """
+    # 1. Define the base Decision Tree model
+    dt_base = DecisionTreeClassifier(random_state=9999)
+
+    # 2. Pipeline
+    full_pipeline = Pipeline([
+        ("preprocessor", preprocessor_pipeline),
+        ("classifier", dt_base)
+    ])
+
+    # 3. Define hyperparameters
+    param_grid = {
+        # Tree structure control
+        'classifier__max_depth': [None, 3, 5, 10],
+        'classifier__min_samples_leaf': [1, 5, 10, 20],
+        'classifier__min_samples_split': [2, 10, 25, 50],
+
+        # Quality metric
+        'classifier__criterion': ['gini', 'entropy'],
+
+        # Balance managed
+        'classifier__class_weight': [None, 'balanced'],
+
+        # Feature Engineering
+        'preprocessor__feature_creator__Total_Income': [True, False],
+        'preprocessor__feature_creator__Income_Loan_Ratio': [True, False],
+        'preprocessor__feature_creator__High_Income_Flag': [True, False]
+    }
+
+    # 4. GridSearchCV Optimization
+    grid_search = GridSearchCV(
+        full_pipeline,
+        param_grid,
+        cv=5,
+        scoring='f1',
+        n_jobs=-1
+    )
+
+    # 5. Training
+    grid_search.fit(X_train, y_train)
+
     return grid_search.best_estimator_, grid_search.best_params_

@@ -2,6 +2,9 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+import os
+import graphviz
+from sklearn.tree import export_graphviz
 from sklearn.model_selection import learning_curve
 from sklearn.decomposition import PCA
 from sklearn.metrics import (
@@ -17,19 +20,34 @@ from sklearn.metrics import (
 
 def analyze_feature_importance(model):
     """
-    Extract and display the significance of the variables (coefficients)
-    of lineal model (such as Logistic Regression or SGD) within a pipeline.
+    Extract and display the significance of the variables of lineal model or decision tree-based model.
     """
     # Best model created with a train.py function
     feature_names = model.named_steps['preprocessor'].get_feature_names_out()
-    coefficients = model.named_steps['classifier'].coef_.flatten()
+    classifier = model.named_steps['classifier']
+
+    # Automatic detection of model type
+    if hasattr(classifier, 'coef_'):
+        importances = classifier.coef_.flatten()
+        metric_name = 'Coefficient'
+    elif hasattr(classifier, 'feature_importances_'):
+        importances = classifier.feature_importances_
+        metric_name = 'Importance'
+    else:
+        print("The model has no known attributes of importance (coef_ or feature_importances_)")
+        return None
 
     importance_df = pd.DataFrame({
         'Feature': feature_names,
-        'Coefficient': coefficients
-    }).sort_values(by='Coefficient', ascending=False)
+        metric_name: importances
+    })
 
-    print("\n--- Feature Significance (Lasso) ---")
+    # If it's importance (trees), we order by absolute value but show the actual value (always positive).
+    # If it's a coefficient, we order by absolute value to see the magnitude.
+    importance_df['Abs_Value'] = importance_df[metric_name].abs()
+    importance_df = importance_df.sort_values(by='Abs_Value', ascending=False).drop(columns=['Abs_Value'])
+
+    print(f"\n--- Feature {metric_name} ---")
     print(importance_df.to_string(index=False))
     return importance_df
 
@@ -298,3 +316,41 @@ def analyze_support_vectors(model, X_train, y_train, model_name="svm_model"):
     plt.show()
 
     return ratio
+
+
+def visualize_tree(model, preprocessor, feature_names, class_names=['Rejected', 'Approved'], path="outputs"):
+    """
+    Export the decision tree visualization to a .dot and .png file.
+    """
+    if not os.path.exists(path):
+        os.makedirs(path)
+
+    # Remove the classifier from the pipeline if necessary
+    if hasattr(model, 'named_steps'):
+        classifier = model.named_steps['classifier']
+    else:
+        classifier = model
+
+    dot_path = os.path.join(path, "decision_tree.dot")
+    png_path = os.path.join(path, "decision_tree")  # graphviz adds the extension
+
+    # 1. Export to DOT format
+    export_graphviz(
+        classifier,
+        out_file=dot_path,
+        feature_names=feature_names,
+        class_names=class_names,
+        rounded=True,
+        filled=True
+    )
+    print(f"Tree exported to: {dot_path}")
+
+    # 2. Try to convert the DOT file to PNG
+    try:
+        source = graphviz.Source.from_file(dot_path)
+        source.format = "png"
+        source.render(filename="decision_tree", directory=path, cleanup=True)
+        print(f"Image saved in: {png_path}.png")
+    except Exception as e:
+        print(f"The PNG image could not be generated (Check Graphviz binaries installation): {e}")
+        print(f"You can view the .dot file online at http://viz-js.com/")

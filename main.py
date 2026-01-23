@@ -5,17 +5,18 @@ from src.pipelines import get_preprocessing_pipeline
 from src.train import (
     save_model,
     update_experiment_log,
-    train_svm_poly
+    train_decision_tree
     )
 from src.evaluation import (
     analyze_feature_importance,
-    get_optimal_threshold_from_scores,
-    full_classification_report_from_scores,
+    get_optimal_threshold,
+    full_classification_report,
     plot_learning_curve,
-    analyze_support_vectors
+    analyze_support_vectors,
+    visualize_tree
     )
 
-def run_training_pipeline(model_name="svm_poly_v5"):
+def run_training_pipeline(model_name="decision_tree_v1"):
     print(f"--- Initiating training for {model_name} ---")
 
     # 1. Load data
@@ -28,18 +29,18 @@ def run_training_pipeline(model_name="svm_poly_v5"):
 
     # 3. Model training and hyperparameter optimization (Lasso)
     print(f"Initiating training: {model_name}...")
-    best_model, best_params = train_svm_poly(X_train, y_train, preprocessor)
+    best_model, best_params = train_decision_tree(X_train, y_train, preprocessor)
     print(f"Best hyperparameters: {best_params}")
 
     # 4. Significance analysis of variables
-    #analyze_feature_importance(best_model)
+    analyze_feature_importance(best_model)
 
     # 5. Look for the ideal threshold
-    ideal_th, best_f1, _, _, _ = get_optimal_threshold_from_scores(best_model, X_test, y_test)
+    ideal_th, best_f1, _, _, _ = get_optimal_threshold(best_model, X_test, y_test)
     print(f"Ideal threshold: {ideal_th:.4f}")
 
     # 6. Model's final evaluation with the ideal threshold
-    metrics_dict = full_classification_report_from_scores(
+    metrics_dict = full_classification_report(
         best_model,
         X_test,
         y_test,
@@ -47,14 +48,18 @@ def run_training_pipeline(model_name="svm_poly_v5"):
         model_name=model_name
     )
 
-    # 7. Save the model
+    # 7. Visualize the decision tree
+    feature_names = best_model.named_steps['preprocessor'].get_feature_names_out()
+    visualize_tree(best_model, preprocessor, feature_names)
+
+    # 8. Save the model
     model_path = save_model(best_model, model_name)
     print(f"Model saved in: {model_path}")
 
-    # 8. Register the experiment in CSV file
+    # 9. Register the experiment in CSV file
     update_experiment_log(model_name, best_params, metrics_dict)
 
-    # 9. Learning curve analysis
+    # 10. Learning curve analysis
     print("\nGenerating Learning Curves...")
     plot_learning_curve(
         best_model,
@@ -98,7 +103,7 @@ def run_evaluation_pipeline(model_name="svm_rbf_v1"):
         best_model,
         X_train,
         y_train,
-        title=f"Learning Curve - {model_name} (Evaluación)",
+        title=f"Learning Curve - {model_name} (Evaluation)",
         scoring='f1',
         cv=5
     )
@@ -117,8 +122,8 @@ def run_evaluation_pipeline(model_name="svm_rbf_v1"):
 
 
 if __name__ == "__main__":
-    # run_training_pipeline(model_name="svm_poly_v5")
+     run_training_pipeline(model_name="decision_tree_v1")
 
-    run_evaluation_pipeline(model_name="svm_rbf_v1")
+    # run_evaluation_pipeline(model_name="svm_rbf_v1")
 
 

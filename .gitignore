@@ -18,3 +18,4 @@ models/*.pkl
 
 # Ignore graphical outputs but keep the log file
 outputs/*.png
+outputs/*.dot
