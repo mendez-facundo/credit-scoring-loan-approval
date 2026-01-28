@@ -20,35 +20,51 @@ from sklearn.metrics import (
 
 def analyze_feature_importance(model):
     """
-    Extract and display the significance of the variables of lineal model or decision tree-based model.
+    Extract and display the significance of the variables.
+    Compatible with:
+    - Linear models (Logistic Regression, SVM linear) -> uses .coef_
+    - Tree-based models (Decision Tree, Random Forest, Gradient Boosting) -> uses .feature_importances_
     """
-    # Best model created with a train.py function
-    feature_names = model.named_steps['preprocessor'].get_feature_names_out()
+    # Extract feature names from the preprocessor step
+    try:
+        feature_names = model.named_steps['preprocessor'].get_feature_names_out()
+    except AttributeError:
+        # Fallback for older scikit-learn versions or simple pipelines
+        feature_names = [f"Feature_{i}" for i in range(model.named_steps['classifier'].n_features_in_)]
+
     classifier = model.named_steps['classifier']
 
     # Automatic detection of model type
     if hasattr(classifier, 'coef_'):
+        # For linear models (Lasso, Ridge, Linear SVM)
+        # Flatten is used because coef_ is shape (1, n_features) for binary classification
         importances = classifier.coef_.flatten()
         metric_name = 'Coefficient'
+
     elif hasattr(classifier, 'feature_importances_'):
+        # For Trees and Ensembles (Random Forest, XGBoost, etc.)
         importances = classifier.feature_importances_
         metric_name = 'Importance'
+
     else:
         print("The model has no known attributes of importance (coef_ or feature_importances_)")
         return None
 
+    # Create DataFrame
     importance_df = pd.DataFrame({
         'Feature': feature_names,
         metric_name: importances
     })
 
-    # If it's importance (trees), we order by absolute value but show the actual value (always positive).
-    # If it's a coefficient, we order by absolute value to see the magnitude.
+    # Sorting logic:
+    # - For coefficients: we care about magnitude (absolute value), but keep the sign.
+    # - For importances: they are always positive, so abs() doesn't change anything but allows reusing logic.
     importance_df['Abs_Value'] = importance_df[metric_name].abs()
     importance_df = importance_df.sort_values(by='Abs_Value', ascending=False).drop(columns=['Abs_Value'])
 
     print(f"\n--- Feature {metric_name} ---")
     print(importance_df.to_string(index=False))
+
     return importance_df
 
 

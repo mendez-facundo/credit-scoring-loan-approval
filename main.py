@@ -5,18 +5,33 @@ from src.pipelines import get_preprocessing_pipeline
 from src.train import (
     save_model,
     update_experiment_log,
-    train_decision_tree
+    train_logistic_regression,
+    train_logistic_regression_poly,
+    train_sgd_logit,
+    train_sgd_svm,
+    train_svm_kernel,
+    train_svm_poly,
+    train_decision_tree,
+    train_random_forest,
+    train_extra_trees,
+    train_adaboost,
+    train_gradient_boosting,
+    train_lightgbm,
+    train_xgboost,
+    train_stacking_ensemble
     )
 from src.evaluation import (
     analyze_feature_importance,
     get_optimal_threshold,
+    get_optimal_threshold_from_scores,
     full_classification_report,
+    full_classification_report_from_scores,
     plot_learning_curve,
     analyze_support_vectors,
     visualize_tree
     )
 
-def run_training_pipeline(model_name="decision_tree_v1"):
+def run_training_pipeline(model_name="stacking_v2"):
     print(f"--- Initiating training for {model_name} ---")
 
     # 1. Load data
@@ -27,15 +42,30 @@ def run_training_pipeline(model_name="decision_tree_v1"):
     print("Setting up preprocessing pipeline...")
     preprocessor = get_preprocessing_pipeline()
 
-    # 3. Model training and hyperparameter optimization (Lasso)
+    # 3. Model training and hyperparameter optimization
     print(f"Initiating training: {model_name}...")
-    best_model, best_params = train_decision_tree(X_train, y_train, preprocessor)
+    best_model, best_params = train_stacking_ensemble(X_train, y_train, preprocessor, {})
     print(f"Best hyperparameters: {best_params}")
 
     # 4. Significance analysis of variables
-    analyze_feature_importance(best_model)
+    # analyze_feature_importance(best_model)
+    try:
+        # Access meta-model (Logistic Regression) inside the Stacking
+        meta_model = best_model.named_steps['classifier'].final_estimator_
+        base_model_names = best_model.named_steps['classifier'].named_estimators_.keys()
 
-    # 5. Look for the ideal threshold
+        # Extract the coefficients assigned by the meta-model to each base model
+        if hasattr(meta_model, 'coef_'):
+            print("\n--- Meta-Learner Weights (Base Model Importance) ---")
+            meta_weights = meta_model.coef_.flatten()
+            for name, weight in zip(base_model_names, meta_weights):
+                print(f"Model {name}: {weight:.4f}")
+        else:
+            print("Meta-learner does not provide coefficients.")
+    except Exception as e:
+        print(f"Could not analyze meta-learner weights: {e}")
+
+    # 5. Threshold Tuning
     ideal_th, best_f1, _, _, _ = get_optimal_threshold(best_model, X_test, y_test)
     print(f"Ideal threshold: {ideal_th:.4f}")
 
@@ -48,18 +78,14 @@ def run_training_pipeline(model_name="decision_tree_v1"):
         model_name=model_name
     )
 
-    # 7. Visualize the decision tree
-    feature_names = best_model.named_steps['preprocessor'].get_feature_names_out()
-    visualize_tree(best_model, preprocessor, feature_names)
-
-    # 8. Save the model
+    # 7. Save the model
     model_path = save_model(best_model, model_name)
     print(f"Model saved in: {model_path}")
 
-    # 9. Register the experiment in CSV file
+    # 8. Register the experiment in CSV file
     update_experiment_log(model_name, best_params, metrics_dict)
 
-    # 10. Learning curve analysis
+    # 9. Learning curve analysis
     print("\nGenerating Learning Curves...")
     plot_learning_curve(
         best_model,
@@ -122,8 +148,8 @@ def run_evaluation_pipeline(model_name="svm_rbf_v1"):
 
 
 if __name__ == "__main__":
-     run_training_pipeline(model_name="decision_tree_v1")
+     run_training_pipeline()
 
-    # run_evaluation_pipeline(model_name="svm_rbf_v1")
+    # run_evaluation_pipeline()
 
 
