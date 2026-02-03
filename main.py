@@ -1,7 +1,7 @@
 import joblib
 import os
 from src.data_loader import load_stratified_data
-from src.pipelines import get_preprocessing_pipeline
+from src.pipelines import get_preprocessing_pipeline, get_kpca_pipeline
 from src.train import (
     save_model,
     update_experiment_log,
@@ -18,7 +18,8 @@ from src.train import (
     train_gradient_boosting,
     train_lightgbm,
     train_xgboost,
-    train_stacking_ensemble
+    train_stacking_ensemble,
+    train_kpca_logit
     )
 from src.evaluation import (
     analyze_feature_importance,
@@ -31,7 +32,7 @@ from src.evaluation import (
     visualize_tree
     )
 
-def run_training_pipeline(model_name="stacking_v2"):
+def run_training_pipeline(model_name="logit_kpca_v1"):
     print(f"--- Initiating training for {model_name} ---")
 
     # 1. Load data
@@ -40,15 +41,16 @@ def run_training_pipeline(model_name="stacking_v2"):
 
     # 2. Get preprocessing pipeline
     print("Setting up preprocessing pipeline...")
-    preprocessor = get_preprocessing_pipeline()
+    preprocessor = get_kpca_pipeline()
 
     # 3. Model training and hyperparameter optimization
     print(f"Initiating training: {model_name}...")
-    best_model, best_params = train_stacking_ensemble(X_train, y_train, preprocessor, {})
+    best_model, best_params = train_kpca_logit(X_train, y_train, preprocessor)
     print(f"Best hyperparameters: {best_params}")
 
     # 4. Significance analysis of variables
     # analyze_feature_importance(best_model)
+    """
     try:
         # Access meta-model (Logistic Regression) inside the Stacking
         meta_model = best_model.named_steps['classifier'].final_estimator_
@@ -64,6 +66,7 @@ def run_training_pipeline(model_name="stacking_v2"):
             print("Meta-learner does not provide coefficients.")
     except Exception as e:
         print(f"Could not analyze meta-learner weights: {e}")
+    """
 
     # 5. Threshold Tuning
     ideal_th, best_f1, _, _, _ = get_optimal_threshold(best_model, X_test, y_test)

@@ -3,6 +3,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer, make_column_selector
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import MinMaxScaler, OneHotEncoder
+from sklearn.decomposition import KernelPCA
 from sklearn import set_config
 from src.transformers import ColumnDropper, FeatureCreator
 
@@ -37,3 +38,19 @@ def get_preprocessing_pipeline():
     ])
 
     return full_pipeline
+
+
+def get_kpca_pipeline(n_components=10, kernel='rbf', gamma=0.04):
+    """
+    Extend the standard preprocessing pipeline by adding Kernel PCA at the end.
+    """
+    # Import the base preprocessing pipeline
+    base_pipeline = get_preprocessing_pipeline()
+
+    # Incorporate Kernel PCA to the pipeline
+    kpca_pipeline = Pipeline(steps=[
+        ('base_preprocessor', base_pipeline),
+        ('kpca', KernelPCA(n_components=n_components, kernel=kernel, gamma=gamma, fit_inverse_transform=False))
+    ])
+
+    return kpca_pipeline

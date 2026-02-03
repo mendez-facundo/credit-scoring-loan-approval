@@ -800,3 +800,48 @@ def train_stacking_ensemble(X_train, y_train, preprocessor_pipeline, best_params
     full_pipeline.fit(X_train, y_train)
 
     return full_pipeline, stacking_clf.get_params()
+
+
+def train_kpca_logit(X_train, y_train, kpca_pipeline):
+    """
+    Train a Logistic Regression using Kernel PCA for nonlinear projection.
+    Optimize kernel, gamma, and C regularization together.
+    """
+    # 1. Define the Kernel PCA + Logistic Regression model
+    logit = LogisticRegression(
+        solver='lbfgs',
+        max_iter=10000,
+        random_state=9999
+    )
+
+    # 2. Pipeline
+    full_pipeline = Pipeline([
+        ("preparation", kpca_pipeline),
+        ("classifier", logit)
+    ])
+
+    # 3. Define hyperparameters
+    param_grid = {
+        # kPCA parameters
+        'preparation__kpca__kernel': ['rbf', 'sigmoid', 'poly'],
+        'preparation__kpca__gamma': [0.01, 0.03, 0.05, 0.1],
+        'preparation__kpca__n_components': [5, 10, 15],
+
+        # Logistic Regression parameters
+        'classifier__C': [0.1, 1.0, 10]
+    }
+
+    # 4. GridSearchCV Optimization
+    grid_search = GridSearchCV(
+        full_pipeline,
+        param_grid,
+        cv=5,
+        scoring='f1',
+        n_jobs=-1,
+        verbose=1
+    )
+
+    # 5. Model fitting
+    grid_search.fit(X_train, y_train)
+
+    return grid_search.best_estimator_, grid_search.best_params_

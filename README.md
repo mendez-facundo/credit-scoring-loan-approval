@@ -21,7 +21,8 @@ The dataset consists of the following primary features as described in the initi
 The initial data exploration revealed critical patterns for modeling:
 - **Key Predictor**: Credit_History is the most dominant factor in loan approval; applicants with a positive history have a significantly higher approval rate. 
 - **Class Imbalance**: Approximately 68.6% of the loans in the training set are approved, which necessitates the use of metrics like F1-Score rather than just Accuracy.
-- **Feature Distributions**: Numerical variables exhibited high skewness, justifying the use of robust scaling (MinMaxScaler) within the preprocessing pipeline.
+- **Feature Distributions**: Numerical variables exhibited high skewness, justifying the use of robust scaling (MinMaxScaler) within the preprocessing pipeline. 
+- **Structural Analysis**: PCA projections (2D/3D) and Elbow Plots revealed that the dataset requires ~9 dimensions to explain 95% of the variance and that classes are heavily overlapped, confirming the lack of a simple low-dimensional manifold.
 
 ## 3. Methodology
 The project follows a rigorous Machine Learning workflow:
@@ -36,6 +37,7 @@ The project follows a rigorous Machine Learning workflow:
 
 ## 4. Project Architecture & Workflow
 The project has been refactored into a modular structure to support MLOps best practices, separating training logic from evaluation and diagnostics.
+- **notebooks**: Jupyter notebooks for EDA, model prototyping, and visualization.
 - **src/data_loader.py**: Stratified data loading to handle class imbalance.
 - **src/pipelines.py**: Scikit-Learn pipelines with custom transformers (FeatureCreator) and scalers.
 - **src/train.pyn**: Logic for model training, including hyperparameter optimization (GridSearchCV and RandomizedSearchCV).
@@ -48,6 +50,7 @@ The project has been refactored into a modular structure to support MLOps best p
   - **Optimization & Regularization**:
     - **Lasso (L1)**: Used for automatic feature selection, effectively zeroing out redundant coefficients to reduce noise. 
     - **SVM Kernels**: Exploration of Linear, Polynomial, and RBF kernels to capture non-linear decision boundaries.
+    - **Kernel PCA (kPCA)**: Applied to project data into a higher-dimensional feature space to capture non-linear structures before linear classification.
     - **Tree Pruning**: Usage of `max_depth` and `min_samples_leaf` to control variance and prevent overfitting in Decision Trees.
     - **Boosting Regularization**: Usage of reg_alpha (L1) and reg_lambda (L2) in XGBoost/LightGBM to control overfitting on the small dataset.
   - **Ensemble Strategies**:
@@ -73,6 +76,7 @@ The following table summarizes the performance across different architectures an
 | **Logit Poly (v2)**        | 0.7466  |  0.8691  |  0.7830   | 0.9760 |       0.5201       |
 | **SVM_RBF_v1**             | 0.7325  |  0.8691  |  0.7830   | 0.9765 |       0.6538       |
 | **SVM_Poly_v5**            | 0.7186  |  0.8691  |  0.7830   | 0.9765 |       0.4129       |
+| **Logit kPCA (v1)**        | 0.7341  |  0.8691  |  0.7830   | 0.9765 |       0.5634       |
 | **Decision Tree (v1)**     | 0.7269  |  0.8600  |  0.7800   | 0.9600 |       0.7569       |
 | **Random Forest (v1)**     | 0.7218  |  0.8737  |  0.7905   | 0.9765 |       0.4661       |
 | **Extra Trees (v1)**       | 0.7745  |  0.8691  |  0.7830   | 0.9765 |       0.6189       |
